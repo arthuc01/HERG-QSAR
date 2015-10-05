@@ -8,7 +8,7 @@ Molecular descriptors are generated from the molecule structures using RDKit. Th
 ###
 
 ####Dependencies:
-* [RDKit(http://www.rdkit.org/)
+* [RDKit](http://www.rdkit.org/)
 * [NumPy](http://www.numpy.org/)
 * [IPython](http://ipython.org/)
 * [Pandas](http://pandas.pydata.org/)
