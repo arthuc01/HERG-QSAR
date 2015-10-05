@@ -2,7 +2,8 @@
 """
 Created on Fri Sep 04 12:59:09 2015
 
-@author: Chris
+@author: Chris Arthur
+
 """
 
 import sys, cPickle
@@ -15,7 +16,12 @@ from sklearn import preprocessing
 import random
  
 min_max_scaler = preprocessing.MinMaxScaler()
- 
+
+'''
+Open pre-formatted Chembl data file First column = structure. Second column = pIC50
+Split data into test and training sets
+'''
+
 f = open('herg2.csv', 'r')
 
 data = []
@@ -28,6 +34,7 @@ for line in f:
     smiles=temp[0]
     pIC50 = float(temp[1])
     if random.randint(0,3) == 2:
+		#Generate molecule from smiles string.
         test.append(Chem.MolFromSmiles(smiles))
         testTarget.append(pIC50)
     else:
@@ -35,6 +42,10 @@ for line in f:
         trainTarget.append(pIC50)        
     
 def ClusterFps(fps,cutoff=0.2):
+	# Function to group molecules based on their similarity to other compounds in the HERG set.
+	# This is an attempt to overcome some of the problems associated with not
+	# having a single series of related compounds
+	
     from rdkit import DataStructs
     from rdkit.ML.Cluster import Butina
 
@@ -52,6 +63,9 @@ def ClusterFps(fps,cutoff=0.2):
 
 
 
+'''
+Use RDKit to calculate molecular descriptors from the Smiles string
+'''
 
 nms=[x[0] for x in Descriptors._descList]
 calc = MoleculeDescriptors.MolecularDescriptorCalculator(nms)
@@ -59,6 +73,10 @@ print(len(nms))
  
 trainDescrs = [calc.CalcDescriptors(x) for x in train]
 from rdkit.Chem import AllChem
+
+'''
+Cluster the compounds together
+'''
 
 fps = [AllChem.GetMorganFingerprintAsBitVect(x,2,1024) for x in train]
 clusters=ClusterFps(fps,cutoff=0.4)
@@ -68,12 +86,15 @@ clusterCenters=[]
 for x in range(len(clusters)):
     clusterCenters.append( clusters[x][0] )
 
+	
 def distij(i,j,fps=fps):
+	# Function to calculate the distance similarity to cluster centers
     return 1-DataStructs.DiceSimilarity(fps[i],fps[j])
 
 
 testDescrs  = [calc.CalcDescriptors(x) for x in test]
 
+# Get into a form ready for using SciKit-Learn
 
 trainDescrs = np.array(trainDescrs)
 testDescrs = np.array(testDescrs)
@@ -89,12 +110,10 @@ test_x, test_y = testDescrs, testTarget
 
 test_y=np.asarray(test_y)
 
-'''
 print "RANDOMFOREST"
 nclf = RandomForestRegressor( n_estimators=200, max_depth=5, random_state=0, n_jobs=-1 )
 nclf = nclf.fit( train_x, train_y )
 preds = nclf.predict( test_x )
-
 
 from sklearn.metrics import r2_score
 r2 = r2_score(test_y, preds)
@@ -330,8 +349,7 @@ ax.legend(loc="lower right")
 fig.show()
 
 
-'''
-
+# Regression using SciKit-NeuralNetwork
 
 from sknn.mlp import Regressor, Layer
 
