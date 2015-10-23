@@ -11,6 +11,8 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import DataStructs
 from rdkit.Chem import Descriptors
+
+from rdkit.ML.Cluster import Butina
 from rdkit.ML.Descriptors import MoleculeDescriptors
 from sklearn import preprocessing
 import random
@@ -46,8 +48,6 @@ def ClusterFps(fps,cutoff=0.2):
 	# This is an attempt to overcome some of the problems associated with not
 	# having a single series of related compounds
 	
-    from rdkit import DataStructs
-    from rdkit.ML.Cluster import Butina
 
     # first generate the distance matrix:
     dists = []
@@ -73,24 +73,24 @@ print(len(nms))
  
 trainDescrs = [calc.CalcDescriptors(x) for x in train]
 from rdkit.Chem import AllChem
-
-'''
-Cluster the compounds together
-'''
-
-fps = [AllChem.GetMorganFingerprintAsBitVect(x,2,1024) for x in train]
-clusters=ClusterFps(fps,cutoff=0.4)
-print "Number of clusters", len(clusters)
-
-clusterCenters=[]
-for x in range(len(clusters)):
-    clusterCenters.append( clusters[x][0] )
-
-	
-def distij(i,j,fps=fps):
-	# Function to calculate the distance similarity to cluster centers
-    return 1-DataStructs.DiceSimilarity(fps[i],fps[j])
-
+#
+#'''
+#Cluster the compounds together
+#'''
+#
+#fps = [AllChem.GetMorganFingerprintAsBitVect(x,2,1024) for x in train]
+#clusters=ClusterFps(fps,cutoff=0.4)
+#print "Number of clusters", len(clusters)
+#
+#clusterCenters=[]
+#for x in range(len(clusters)):
+#    clusterCenters.append( clusters[x][0] )
+#
+#	
+#def distij(i,j,fps=fps):
+#	# Function to calculate the distance similarity to cluster centers
+#    return 1-DataStructs.DiceSimilarity(fps[i],fps[j])
+#
 
 testDescrs  = [calc.CalcDescriptors(x) for x in test]
 
@@ -105,17 +105,49 @@ x_test_minmax = min_max_scaler.fit_transform( testDescrs )
 import sys, cPickle
 from sklearn.ensemble import RandomForestRegressor
 
-train_x, train_y = trainDescrs,  trainTarget
-test_x, test_y = testDescrs, testTarget
 
+train_x, train_y = testDescrs, testTarget
+test_x, test_y = trainDescrs,  trainTarget
 test_y=np.asarray(test_y)
+
+import numpy as np
+from sklearn import gaussian_process
+#theta0=1e-2, thetaL=1e-4, thetaU=1e-1
+gp = gaussian_process.GaussianProcess(nugget = 0.2)
+gp.fit(train_x, train_y)  
+preds, sigma2_pred = gp.predict(test_x, eval_MSE=True)
+
+
+from sklearn.metrics import r2_score
+
+r2 = r2_score(test_y, preds)
+print r2
+mse = np.mean((test_y - preds)**2)
+print mse
+
+
+
+import pylab as pl
+ 
+fig,ax = pl.subplots()
+ax.scatter(test_y, preds, alpha=0.3)
+ax.plot([test_y.min(), test_y.max()], [test_y.min(), test_y.max()], 'k--', lw=4)
+ax.set_xlabel('Measured')
+ax.set_ylabel('Predicted')
+ax.plot( label="r^2=" + str(r2), c="r")
+ax.legend(loc="lower right")
+
+fig.show()
+
+'''
+
 
 print "RANDOMFOREST"
 nclf = RandomForestRegressor( n_estimators=200, max_depth=5, random_state=0, n_jobs=-1 )
 nclf = nclf.fit( train_x, train_y )
 preds = nclf.predict( test_x )
 
-from sklearn.metrics import r2_score
+
 r2 = r2_score(test_y, preds)
 print r2
 mse = np.mean((test_y - preds)**2)
@@ -379,6 +411,8 @@ print("Residual sum of squares: %.2f"
 # Explained variance score: 1 is perfect prediction
 print('Variance score: %.2f' % nn.score(test_x, test_y))
 
+
+
 import matplotlib.pyplot as plt
 
 # Plot outputs
@@ -390,4 +424,4 @@ plt.xticks(())
 plt.yticks(())
 
 plt.show()
-
+'''
